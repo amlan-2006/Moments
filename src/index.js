@@ -84,8 +84,8 @@ const __dirname = path.dirname(__filename);
 // Go up one directory level from 'src' to locate the root 'dist' folder built by Vite
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Catch-all route to serve the React SPA entry point
-app.get('*', (req, res) => {
+// Express v5 compliant wildcard catch-all route for SPA navigation
+app.get('/*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
 
