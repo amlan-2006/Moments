@@ -1,10 +1,11 @@
-// src/index.js
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import ytsr from 'ytsr';
 import registerRoomHandlers from './sockets/Roomhandle.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const app = express();
 
@@ -18,8 +19,6 @@ const allowedOrigins = [
 // Allow your React app to connect to this server
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl) 
-        // or if it's in our allowed list
         if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
@@ -41,7 +40,6 @@ app.get('/api/youtube-search', async (req, res) => {
     try {
         const searchResults = await ytsr(query + ' song', { limit: 10 });
 
-        // Filter only video results (not channels, playlists, etc.)
         const videos = searchResults.items
             .filter(item => item.type === 'video')
             .slice(0, 8)
@@ -65,7 +63,7 @@ const server = http.createServer(app);
 // Initialize Socket.io with robust CORS settings
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins, // Use the same dynamic array you defined above
+        origin: allowedOrigins,
         methods: ["GET", "POST"]
     }
 });
@@ -76,26 +74,20 @@ const rooms = {};
 // Handle incoming connection and pass socket details to the isolated handler file
 io.on('connection', (socket) => {
     console.log(`⚡ Connection established: ${socket.id}`);
-
-    // Register all room, chat, and sync handlers from our separate file
     registerRoomHandlers(io, socket, rooms);
 });
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-
+// --- PRODUCTION STATIC PATH ASSET FIX ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 1. Serve static files from your React build folder
-app.use(express.static(path.join(__dirname, 'client/dist')));
+// Go up one directory level from 'src' to locate the root 'dist' folder built by Vite
+app.use(express.static(path.join(__dirname, '../dist')));
 
-// 2. Catch-all: If a request doesn't match an API route or a static file,
-// send the React index.html. This is vital for React Router or SPA navigation.
+// Catch-all route to serve the React SPA entry point
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
+    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
-
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "npm install --legacy-peer-deps --no-audit && vite build",
-    "start": "node index.js",
+    "start": "node src/index.js",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "node index.js",
+    "dev:server": "node src/index.js",
     "dev:client": "vite"
   },
   "dependencies": {
