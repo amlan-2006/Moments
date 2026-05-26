@@ -24,23 +24,22 @@ const MomentsApp = () => {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  // --- Prevent Unintentional Disconnection / Refresh Prompt ---
+  // --- Prevent Unintentional Disconnection ---
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (roomState) {
-        // Triggers the standard system pop-up confirmation
         e.preventDefault();
         e.returnValue = '';
         return '';
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [roomState]);
 
+  // --- Live Synchronization Event Listeners ---
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -48,28 +47,50 @@ const MomentsApp = () => {
       setRoomInput(roomParam);
       setActionType('join');
     }
-    const handleUsersUpdate = (payload) => {
+
+    // Handles user updates cleanly
+    const handleUsersUpdate = (usersArray) => {
       setRoomState(prev => {
         if (!prev) return prev;
-        const usersArray = Array.isArray(payload) ? payload : payload.users;
-        const count = Array.isArray(payload) ? payload.length : payload.userCount;
-        return { ...prev, members: usersArray, userCount: count };
+        return {
+          ...prev,
+          members: usersArray,
+          userCount: usersArray.length
+        };
       });
     };
 
+    // Handles whole room state recovery
     const handleRoomState = (state) => {
       setRoomState(prev => {
         if (!prev) return prev;
-        return { ...prev, members: state.users };
+        return {
+          ...prev,
+          members: state.users,
+          userCount: state.users.length
+        };
       });
     };
 
-    socket.on('room-users-update', handleUsersUpdate);
+    const handleUserJoinedNotification = ({ username }) => {
+      showToast(`👤 ${username} connected to your space!`);
+    };
+
+    const handleUserLeftNotification = (msg) => {
+      showToast(`🔌 Your partner left the space.`);
+    };
+
+    // Subscribing to backend channels
+    socket.on('room-users-updated', handleUsersUpdate);
     socket.on('room-state', handleRoomState);
+    socket.on('user-joined', handleUserJoinedNotification);
+    socket.on('user-left', handleUserLeftNotification);
 
     return () => {
-      socket.off('room-users-update', handleUsersUpdate);
+      socket.off('room-users-updated', handleUsersUpdate);
       socket.off('room-state', handleRoomState);
+      socket.off('user-joined', handleUserJoinedNotification);
+      socket.off('user-left', handleUserLeftNotification);
     };
   }, []);
 
@@ -83,7 +104,14 @@ const MomentsApp = () => {
     socketService.connect();
     socketService.joinRoom(newRoomId, nameInput, 'admin');
 
-    setRoomState({ id: newRoomId, nickname: nameInput, role: 'admin', members: [{ username: nameInput, role: 'admin' }], userCount: 1 });
+    // Setting matching payload signatures (using socket.id ensures accurate evaluation)
+    setRoomState({
+      id: newRoomId,
+      nickname: nameInput,
+      role: 'admin',
+      members: [{ id: socket.id, username: nameInput, role: 'admin' }],
+      userCount: 1
+    });
     window.history.pushState({}, '', `?room=${newRoomId}`);
   };
 
@@ -101,7 +129,13 @@ const MomentsApp = () => {
     socketService.connect();
     socketService.joinRoom(roomId, nameInput, 'joinee');
 
-    setRoomState({ id: roomId, nickname: nameInput, role: 'joinee', members: [{ username: nameInput, role: 'joinee' }], userCount: 1 });
+    setRoomState({
+      id: roomId,
+      nickname: nameInput,
+      role: 'joinee',
+      members: [{ id: socket.id, username: nameInput, role: 'joinee' }],
+      userCount: 1
+    });
     window.history.pushState({}, '', `?room=${roomId}`);
   };
 
@@ -121,10 +155,13 @@ const MomentsApp = () => {
   const rotate4 = useTransform(scrollYProgress, [0.3, 0.7], [90, 0]);
   const opacity4 = useTransform(scrollYProgress, [0.3, 0.6], [0, 1]);
 
+  // Find other members inside the array cleanly
+  const currentPartner = roomState?.members?.find(m => m.id !== socket.id);
+
   return (
     <div className="min-h-screen bg-brand-cream font-sans text-zinc-900 selection:bg-rose-100">
 
-      {/* --- Header --- */}
+      {/* --- Toast System --- */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-zinc-800 text-white px-6 py-3 rounded-full shadow-xl font-semibold text-sm">
           {toastMessage}
@@ -142,7 +179,6 @@ const MomentsApp = () => {
 
       {/* --- HOME TAB PANEL --- */}
       <main className={`pb-32 ${activeTab === 'home' ? 'block' : 'hidden'}`}>
-        {/* --- Hero Section --- */}
         <section ref={heroRef} className="px-6 pt-12 pb-20 text-center flex flex-col items-center">
           <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
             Every story deserves its <span className="text-brand-rose italic">own little world</span>
@@ -161,30 +197,36 @@ const MomentsApp = () => {
                 </span>
               </div>
 
-              {roomState.role === 'admin' && roomState.members && (
-                <div className="w-full bg-white/40 rounded-2xl p-4 mb-4 border border-rose-50 shadow-inner">
-                  <div className="flex justify-between items-center mb-3">
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">People in room</p>
-                    <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full shadow-sm border border-rose-200">
-                      {roomState.userCount || 1} Connected
-                    </span>
+              <div className="w-full bg-white/40 rounded-2xl p-4 mb-4 border border-rose-55 shadow-inner">
+                <div className="flex justify-between items-center mb-3">
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">People in room</p>
+                  <span className="text-[10px] font-bold bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full shadow-sm border border-rose-200">
+                    {roomState.userCount || 1} Connected
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  {/* Show the active user first */}
+                  <div className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-xl shadow-sm border border-rose-100/50">
+                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                    <span className="font-bold text-zinc-700">{roomState.nickname} (You)</span>
+                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-wider ml-auto">{roomState.role}</span>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    {roomState.members.filter(m => (m.id ? m.id !== socket.id : m.username !== roomState.nickname)).length > 0 ? (
-                      roomState.members.filter(m => (m.id ? m.id !== socket.id : m.username !== roomState.nickname)).map((member, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-xl shadow-sm border border-rose-100/50">
-                          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                          <span className="font-bold text-zinc-700">{member.username}</span>
-                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wider ml-auto">{member.role}</span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-xs text-zinc-500 italic text-center py-2">Waiting for partner to join...</div>
-                    )}
-                  </div>
+                  {/* Show the partner if they are loaded into state */}
+                  {currentPartner ? (
+                    <div className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-xl shadow-sm border border-rose-100/50 animate-fade-in">
+                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                      <span className="font-bold text-zinc-700">{currentPartner.username}</span>
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase tracking-wider ml-auto">{currentPartner.role}</span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-zinc-500 italic text-center py-2 bg-zinc-50/50 rounded-xl border border-dashed border-zinc-200">
+                      Waiting for partner to join...
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Share via</p>
               <div className="flex gap-4 items-center mb-2">
@@ -270,6 +312,7 @@ const MomentsApp = () => {
             </div>
           )}
 
+          {/* Animating Blobs and Images */}
           <div className="mt-12 relative w-full max-w-sm aspect-square">
             <div className="absolute inset-0 rounded-blob-2 overflow-hidden paper-shadow border-4 border-white z-10">
               <img
@@ -338,26 +381,11 @@ const MomentsApp = () => {
           <div className="flex-1">
             <h2 className="text-3xl font-bold mb-4">Our Little World</h2>
             <p className="text-zinc-600 mb-6">A tiny corner of the internet built just for us, our jokes, and our favorite things.</p>
-            {/* <ul className="space-y-3">
-              <li className="flex gap-2 items-center text-sm font-medium">
-                <span className="material-symbols-outlined text-rose-400">check_circle</span>
-                Two Souls, One Song
-              </li>
-              <li className="flex gap-2 items-center text-sm font-medium">
-                <span className="material-symbols-outlined text-rose-400">check_circle</span>
-                A Moment of Us !
-              </li>
-            </ul> */}
           </div>
-
-          {/* <div className="flex-1 w-full bg-white p-6 rounded-3xl paper-shadow border border-white">
-            <p className="text-sm font-bold text-brand-rose mb-2 uppercase tracking-lighter">Love is to be felt</p>
-            <p className="text-2xl font-hindi font-semibold">प्रेम दर्शन है, प्रदर्शन नहीं।</p>
-          </div> */}
         </section>
 
         {/* --- Security Notice --- */}
-        <section className="px-6  text-center">
+        <section className="px-6 text-center">
           <p className="text-xs text-zinc-400 max-w-md mx-auto flex items-center justify-center gap-1">
             <span className="material-symbols-outlined text-[12px]">lock</span>
             Your moments are secured. We do not store your data.
