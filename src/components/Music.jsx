@@ -74,10 +74,19 @@ const Music = ({ roomState }) => {
     const [duration, setDuration] = useState(0);
     const [currentSong, setCurrentSong] = useState(SONG_LIBRARY[0]);
 
+    // Track state mutations inside a ref wrapper to eliminate stale state updates inside listeners
+    const currentSongTrackRef = useRef(SONG_LIBRARY[0].audioUrl);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
+
+    // Keep the tracking ref systematically matched with structural changes
+    const changeTrackState = (songObj) => {
+        currentSongTrackRef.current = songObj.audioUrl;
+        setCurrentSong(songObj);
+    };
 
     // --- 1. Live iTunes Network Fetch ---
     useEffect(() => {
@@ -109,17 +118,17 @@ const Music = ({ roomState }) => {
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
-    // --- 2. WebSocket Listeners (FIXED INfINITE LOOP & ALBUM ART) ---
+    // --- 2. WebSocket Listeners (FIXED STALE CLOSURE WITH TRACKING REFS) ---
     useEffect(() => {
         if (!audioRef.current) return;
 
         const handleMusicStateUpdate = (playback) => {
             if (!playback || !playback.audioUrl) return;
 
-            // CRITICAL FIX: If this update is for the song we are already playing, do NOT swap the source string
-            if (audioRef.current.src !== playback.audioUrl) {
+            // Uses ref checking to avoid closed-over stale state comparisons
+            if (currentSongTrackRef.current !== playback.audioUrl) {
                 isRemoteAction.current = true;
-                setCurrentSong({
+                changeTrackState({
                     audioUrl: playback.audioUrl,
                     title: playback.title || 'Shared Song',
                     artist: playback.artist || 'Online',
@@ -128,14 +137,12 @@ const Music = ({ roomState }) => {
                 audioRef.current.src = playback.audioUrl;
             }
 
-            // Sync Time cleanly without stuttering
             if (playback.currentTime !== undefined) {
-                if (Math.abs(audioRef.current.currentTime - playback.currentTime) > 2.5) {
+                if (Math.abs(audioRef.current.currentTime - playback.currentTime) > 2) {
                     audioRef.current.currentTime = playback.currentTime;
                 }
             }
 
-            // Sync Play/Pause without redundancy
             if (playback.playing) {
                 if (audioRef.current.paused) audioRef.current.play().catch(() => { });
                 setIsPlaying(true);
@@ -150,11 +157,8 @@ const Music = ({ roomState }) => {
         const handleTrackUpdate = (playback) => {
             if (!playback || !playback.audioUrl) return;
 
-            // CRITICAL FIX: Block updating source if it's already set to this track
-            if (audioRef.current.src === playback.audioUrl) return;
-
             isRemoteAction.current = true;
-            setCurrentSong({
+            changeTrackState({
                 audioUrl: playback.audioUrl,
                 title: playback.title || 'Shared Song',
                 artist: playback.artist || 'Online',
@@ -171,10 +175,8 @@ const Music = ({ roomState }) => {
 
         const handleRoomState = (state) => {
             if (state && state.playback && state.playback.audioUrl) {
-                if (audioRef.current.src === state.playback.audioUrl) return;
-
                 isRemoteAction.current = true;
-                setCurrentSong({
+                changeTrackState({
                     audioUrl: state.playback.audioUrl,
                     title: state.playback.title || 'Shared',
                     artist: state.playback.artist || '',
@@ -201,7 +203,7 @@ const Music = ({ roomState }) => {
             socket.off('music-track-update', handleTrackUpdate);
             socket.off('room-state', handleRoomState);
         };
-    }, []); // Removed [currentSong.audioUrl] dependency array lock to keep logic decoupled from fast state changes
+    }, []);
 
     // --- 3. Local Controls ---
 
@@ -253,7 +255,7 @@ const Music = ({ roomState }) => {
     const handlePlaySong = useCallback((song) => {
         if (!audioRef.current) return;
 
-        setCurrentSong(song);
+        changeTrackState(song);
         audioRef.current.src = song.audioUrl;
         audioRef.current.play().catch(() => { });
 
@@ -372,7 +374,6 @@ const Music = ({ roomState }) => {
                             alt={currentSong.title || "Album Art"}
                             referrerPolicy="no-referrer"
                             onError={(e) => {
-                                console.log("Cover Art load fallback triggered.");
                                 e.target.src = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
                             }}
                         />
