@@ -22,22 +22,37 @@ export const socketService = {
         socket.emit('join-room', { roomId, username, role });
     },
 
-    // Updated to accept the optional image parameter we discussed earlier
     sendMessage: (roomId, message, sender, senderId, image = null) => {
         socket.emit('send-message', {
             roomId,
             message,
             sender,
             senderId,
-            image // This will now be sent to the server
+            image
         });
     },
 
-    updateMusicState: (roomId, { playing, videoId, currentTime }) => {
-        socket.emit('music-state-change', { roomId, playing, videoId, currentTime });
+    // FIXED: Maps to the correct keys used by your music player component and backend
+    updateMusicState: (roomId, { playing, audioUrl, currentTime, title, artist, thumbnail }) => {
+        socket.emit('update-music-state', {
+            roomId,
+            playing,
+            audioUrl,
+            currentTime,
+            title,
+            artist,
+            thumbnail
+        });
     },
 
-    changeTrack: (roomId, { videoId, title, artist }) => {
-        socket.emit('music-track-change', { roomId, videoId, title, artist });
+    // FIXED: Captures audioUrl and thumbnail cleanly, matching your component actions
+    changeTrack: (roomId, { audioUrl, title, artist, thumbnail }) => {
+        socket.emit('change-track', {
+            roomId,
+            audioUrl,
+            title,
+            artist,
+            thumbnail
+        });
     }
 };
