@@ -24,7 +24,13 @@ const SongItem = ({ title, artist, audioUrl, thumbnail, onPlay, isActive }) => (
             }`}
     >
         <div className="w-12 h-12 rounded-xl overflow-hidden shadow-sm bg-zinc-100">
-            <img src={thumbnail} alt={title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            <img
+                src={thumbnail || 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150'}
+                alt={title}
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+                onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150'; }}
+            />
         </div>
         <div className="flex-1 overflow-hidden">
             <h4 className={`font-bold text-sm truncate ${isActive ? 'text-rose-600' : 'text-zinc-800'}`}>{title}</h4>
@@ -44,7 +50,6 @@ const SongItem = ({ title, artist, audioUrl, thumbnail, onPlay, isActive }) => (
     </motion.div>
 );
 
-// --- Helper: Format seconds to MM:SS ---
 const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -52,7 +57,6 @@ const formatTime = (seconds) => {
     return `${mins}:${String(secs).padStart(2, '0')}`;
 };
 
-// --- Song Library (Direct MP3 URLs) ---
 const SONG_LIBRARY = [
     { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Acoustic Sunrise', artist: 'Chill Vibes', thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80' },
     { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', title: 'Lofi Study', artist: 'Beat Maker', thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=80' },
@@ -70,13 +74,12 @@ const Music = ({ roomState }) => {
     const [duration, setDuration] = useState(0);
     const [currentSong, setCurrentSong] = useState(SONG_LIBRARY[0]);
 
-    // Search States
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
-    // --- 1. Live iTunes Network Fetch (Debounced) ---
+    // --- 1. Live iTunes Network Fetch ---
     useEffect(() => {
         if (!searchQuery.trim()) {
             setSearchResults([]);
@@ -93,7 +96,7 @@ const Music = ({ roomState }) => {
                     audioUrl: track.previewUrl,
                     title: track.trackName,
                     artist: track.artistName,
-                    thumbnail: track.artworkUrl100.replace('100x100bb', '400x400bb') // High-res art
+                    thumbnail: track.artworkUrl100 ? track.artworkUrl100.replace('100x100bb', '400x400bb') : 'https://via.placeholder.com/400'
                 }));
                 setSearchResults(formattedSongs);
             } catch (error) {
@@ -106,15 +109,16 @@ const Music = ({ roomState }) => {
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
-    // --- 2. WebSocket Listeners ---
+    // --- 2. WebSocket Listeners (FIXED INfINITE LOOP & ALBUM ART) ---
     useEffect(() => {
         if (!audioRef.current) return;
 
         const handleMusicStateUpdate = (playback) => {
-            isRemoteAction.current = true;
+            if (!playback || !playback.audioUrl) return;
 
-            // Load new track if different
-            if (playback.audioUrl && playback.audioUrl !== currentSong.audioUrl) {
+            // CRITICAL FIX: If this update is for the song we are already playing, do NOT swap the source string
+            if (audioRef.current.src !== playback.audioUrl) {
+                isRemoteAction.current = true;
                 setCurrentSong({
                     audioUrl: playback.audioUrl,
                     title: playback.title || 'Shared Song',
@@ -124,28 +128,39 @@ const Music = ({ roomState }) => {
                 audioRef.current.src = playback.audioUrl;
             }
 
-            // Sync Time
+            // Sync Time cleanly without stuttering
             if (playback.currentTime !== undefined) {
-                if (Math.abs(audioRef.current.currentTime - playback.currentTime) > 2) {
+                if (Math.abs(audioRef.current.currentTime - playback.currentTime) > 2.5) {
                     audioRef.current.currentTime = playback.currentTime;
                 }
             }
 
-            // Sync Play/Pause
+            // Sync Play/Pause without redundancy
             if (playback.playing) {
-                audioRef.current.play().catch(() => { });
+                if (audioRef.current.paused) audioRef.current.play().catch(() => { });
+                setIsPlaying(true);
             } else {
-                audioRef.current.pause();
+                if (!audioRef.current.paused) audioRef.current.pause();
+                setIsPlaying(false);
             }
 
-            setIsPlaying(playback.playing);
             setTimeout(() => { isRemoteAction.current = false; }, 300);
         };
 
         const handleTrackUpdate = (playback) => {
-            isRemoteAction.current = true;
+            if (!playback || !playback.audioUrl) return;
 
-            setCurrentSong(playback);
+            // CRITICAL FIX: Block updating source if it's already set to this track
+            if (audioRef.current.src === playback.audioUrl) return;
+
+            isRemoteAction.current = true;
+            setCurrentSong({
+                audioUrl: playback.audioUrl,
+                title: playback.title || 'Shared Song',
+                artist: playback.artist || 'Online',
+                thumbnail: playback.thumbnail || 'https://via.placeholder.com/400'
+            });
+
             audioRef.current.src = playback.audioUrl;
             audioRef.current.play().catch(() => { });
 
@@ -155,9 +170,10 @@ const Music = ({ roomState }) => {
         };
 
         const handleRoomState = (state) => {
-            if (state.playback && state.playback.audioUrl) {
-                isRemoteAction.current = true;
+            if (state && state.playback && state.playback.audioUrl) {
+                if (audioRef.current.src === state.playback.audioUrl) return;
 
+                isRemoteAction.current = true;
                 setCurrentSong({
                     audioUrl: state.playback.audioUrl,
                     title: state.playback.title || 'Shared',
@@ -185,7 +201,7 @@ const Music = ({ roomState }) => {
             socket.off('music-track-update', handleTrackUpdate);
             socket.off('room-state', handleRoomState);
         };
-    }, [currentSong.audioUrl]);
+    }, []); // Removed [currentSong.audioUrl] dependency array lock to keep logic decoupled from fast state changes
 
     // --- 3. Local Controls ---
 
@@ -205,6 +221,9 @@ const Music = ({ roomState }) => {
                 playing: newPlaying,
                 audioUrl: currentSong.audioUrl,
                 currentTime: audioRef.current.currentTime,
+                title: currentSong.title,
+                artist: currentSong.artist,
+                thumbnail: currentSong.thumbnail
             });
         }
     }, [isPlaying, roomState, currentSong]);
@@ -224,6 +243,9 @@ const Music = ({ roomState }) => {
                 playing: isPlaying,
                 audioUrl: currentSong.audioUrl,
                 currentTime: seekTime,
+                title: currentSong.title,
+                artist: currentSong.artist,
+                thumbnail: currentSong.thumbnail
             });
         }
     }, [duration, isPlaying, roomState, currentSong]);
@@ -250,7 +272,9 @@ const Music = ({ roomState }) => {
 
     // --- 4. Audio Element Listeners ---
     const handleTimeUpdate = () => {
-        if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+        if (audioRef.current && !isRemoteAction.current) {
+            setCurrentTime(audioRef.current.currentTime);
+        }
     };
 
     const handleLoadedMetadata = () => {
@@ -266,8 +290,6 @@ const Music = ({ roomState }) => {
 
     return (
         <div className="w-full font-sans pb-32 pt-8 px-4 flex flex-col items-center">
-
-            {/* Native Audio Element (Hidden) */}
             <audio
                 ref={audioRef}
                 src={currentSong.audioUrl}
@@ -317,7 +339,13 @@ const Music = ({ roomState }) => {
                                         className="flex items-center gap-3 p-2 hover:bg-rose-50/60 rounded-xl cursor-pointer transition-colors border-b border-zinc-50 last:border-none"
                                         onClick={() => { handlePlaySong(song); setSearchQuery(""); }}
                                     >
-                                        <img src={song.thumbnail} alt={song.title} className="w-10 h-10 rounded-lg object-cover shadow-inner bg-zinc-100" referrerPolicy="no-referrer" />
+                                        <img
+                                            src={song.thumbnail}
+                                            alt={song.title}
+                                            className="w-10 h-10 rounded-lg object-cover shadow-inner bg-zinc-100"
+                                            referrerPolicy="no-referrer"
+                                            onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }}
+                                        />
                                         <div className="overflow-hidden flex-1">
                                             <h4 className="text-sm font-bold text-zinc-800 truncate">{song.title}</h4>
                                             <p className="text-xs text-zinc-500 truncate">{song.artist}</p>
@@ -333,18 +361,20 @@ const Music = ({ roomState }) => {
 
                 {/* Live Player Card */}
                 <section className="w-full bg-white/40 backdrop-blur-xl rounded-[40px] p-6 shadow-xl shadow-rose-100/30 border border-white flex flex-col items-center mb-8 relative overflow-hidden">
-
-                    {/* Decorative background blur */}
                     <div className="absolute -top-20 -right-20 w-40 h-40 bg-rose-200/40 rounded-full blur-3xl"></div>
                     <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-200/40 rounded-full blur-3xl"></div>
 
-                    {/* Album Art Wrapper Fixed */}
-                    <div className="relative w-56 h-56 mb-8 mt-4 rounded-3xl overflow-hidden shadow-md bg-zinc-100">
+                    {/* Main Album Art Wrapper */}
+                    <div className="relative w-56 h-56 mb-8 mt-4 rounded-3xl overflow-hidden shadow-md bg-zinc-200 flex items-center justify-center">
                         <img
-                            src={currentSong.thumbnail}
+                            src={currentSong.thumbnail || 'https://via.placeholder.com/400'}
                             className="w-full h-full object-cover relative z-10"
-                            alt={currentSong.title}
+                            alt={currentSong.title || "Album Art"}
                             referrerPolicy="no-referrer"
+                            onError={(e) => {
+                                console.log("Cover Art load fallback triggered.");
+                                e.target.src = 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400';
+                            }}
                         />
                     </div>
 
@@ -364,11 +394,7 @@ const Music = ({ roomState }) => {
                             <VisualizerBar heightClass="h-5" isPlaying={isPlaying} />
                         </div>
 
-                        {/* Clickable Progress Bar */}
-                        <div
-                            className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden cursor-pointer relative"
-                            onClick={handleSeek}
-                        >
+                        <div className="h-1.5 w-full bg-white/60 rounded-full overflow-hidden cursor-pointer relative" onClick={handleSeek}>
                             <motion.div
                                 className="h-full bg-rose-400 rounded-full"
                                 style={{ width: `${progressPercent}%` }}
@@ -376,12 +402,8 @@ const Music = ({ roomState }) => {
                             />
                         </div>
                         <div className="flex justify-between mt-2">
-                            <span className="text-[10px] font-bold text-zinc-500">
-                                {formatTime(currentTime)}
-                            </span>
-                            <span className="text-[10px] font-bold text-zinc-500">
-                                {formatTime(duration)}
-                            </span>
+                            <span className="text-[10px] font-bold text-zinc-500">{formatTime(currentTime)}</span>
+                            <span className="text-[10px] font-bold text-zinc-500">{formatTime(duration)}</span>
                         </div>
                     </div>
 
@@ -445,13 +467,6 @@ const Music = ({ roomState }) => {
                     </div>
                 </section>
             </motion.main>
-
-            {/* Global Style for the Organic Blob */}
-            <style>{`
-                .organic-blob {
-                  border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-                }
-            `}</style>
         </div>
     );
 };
