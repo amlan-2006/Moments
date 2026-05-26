@@ -4,6 +4,15 @@ import Chat from './components/Chat';
 import Music from './components/Music';
 import { socketService, socket } from './sockets/clientside';
 
+// --- Production-Safe Asset Imports ---
+import loveHomeLogo from './assets/love_home.png';
+import coupleImg from './assets/img (1).jpg';
+import flwrImg from './assets/flwr.png';
+import orchidsImg from './assets/orchids.png';
+import sflrImg from './assets/sflr.png';
+import ffImg from './assets/ff.png';
+import lilyImg from './assets/lily.png';
+
 const MomentsApp = () => {
   const [activeTab, setActiveTab] = useState('home');
   const heroRef = useRef(null);
@@ -48,7 +57,6 @@ const MomentsApp = () => {
       setActionType('join');
     }
 
-    // Handles user updates cleanly
     const handleUsersUpdate = (usersArray) => {
       setRoomState(prev => {
         if (!prev) return prev;
@@ -60,7 +68,6 @@ const MomentsApp = () => {
       });
     };
 
-    // Handles whole room state recovery
     const handleRoomState = (state) => {
       setRoomState(prev => {
         if (!prev) return prev;
@@ -80,7 +87,6 @@ const MomentsApp = () => {
       showToast(`🔌 Your partner left the space.`);
     };
 
-    // Subscribing to backend channels
     socket.on('room-users-updated', handleUsersUpdate);
     socket.on('room-state', handleRoomState);
     socket.on('user-joined', handleUserJoinedNotification);
@@ -104,7 +110,6 @@ const MomentsApp = () => {
     socketService.connect();
     socketService.joinRoom(newRoomId, nameInput, 'admin');
 
-    // Setting matching payload signatures (using socket.id ensures accurate evaluation)
     setRoomState({
       id: newRoomId,
       nickname: nameInput,
@@ -155,7 +160,6 @@ const MomentsApp = () => {
   const rotate4 = useTransform(scrollYProgress, [0.3, 0.7], [90, 0]);
   const opacity4 = useTransform(scrollYProgress, [0.3, 0.6], [0, 1]);
 
-  // Find other members inside the array cleanly
   const currentPartner = roomState?.members?.find(m => m.id !== socket.id);
 
   return (
@@ -171,7 +175,8 @@ const MomentsApp = () => {
       <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-md border-b border-rose-100/20">
         <div className="max-w-5xl mx-auto px-6 py-2 flex justify-between items-center">
           <div className="flex items-center gap-2 text-rose-400">
-            <img className="w-12 h-12" src="src/assets/love_home.png" alt="Logo" />
+            {/* Updated Logo Asset Reference */}
+            <img className="w-12 h-12" src={loveHomeLogo} alt="Logo" />
             <span className="text-md font-bold uppercase tracking-widest">Moments</span>
           </div>
         </div>
@@ -206,14 +211,12 @@ const MomentsApp = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {/* Show the active user first */}
                   <div className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-xl shadow-sm border border-rose-100/50">
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     <span className="font-bold text-zinc-700">{roomState.nickname} (You)</span>
                     <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md uppercase tracking-wider ml-auto">{roomState.role}</span>
                   </div>
 
-                  {/* Show the partner if they are loaded into state */}
                   {currentPartner ? (
                     <div className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-xl shadow-sm border border-rose-100/50 animate-fade-in">
                       <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
@@ -312,11 +315,12 @@ const MomentsApp = () => {
             </div>
           )}
 
-          {/* Animating Blobs and Images */}
+          {/* --- Animating Blobs and Production-Safe Images --- */}
           <div className="mt-12 relative w-full max-w-sm aspect-square">
             <div className="absolute inset-0 rounded-blob-2 overflow-hidden paper-shadow border-4 border-white z-10">
+              {/* Updated Main Center Image */}
               <img
-                src="src/assets/img (1).jpg"
+                src={coupleImg}
                 alt="Couple"
                 className="w-full h-full object-cover"
               />
@@ -326,34 +330,35 @@ const MomentsApp = () => {
               style={{ scale: scale1, rotate: rotate1, opacity: opacity1 }}
               className="absolute -top-16 -left-16 hidden md:flex items-center justify-center z-20 w-32 h-32 origin-center mix-blend-multiply drop-shadow-md"
             >
-              <img src="src/assets/flwr.png" alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
+              {/* Updated Flower Assets */}
+              <img src={flwrImg} alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
             </motion.div>
             <motion.div
               style={{ scale: scale2, opacity: opacity2 }}
               className="absolute -top-25 -right-2 hidden md:flex items-center justify-center z-0 w-40 h-60 origin-center mix-blend-multiply drop-shadow-md"
             >
-              <img src="src/assets/orchids.png" alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
+              <img src={orchidsImg} alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
             </motion.div>
 
             <motion.div
               style={{ scale: scale2, rotate: rotate2, opacity: opacity2 }}
               className="absolute top-1/4 -right-25 hidden md:flex items-center justify-center z-0 w-40 h-40 origin-center mix-blend-multiply drop-shadow-md"
             >
-              <img src="src/assets/sflr.png" alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
+              <img src={sflrImg} alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
             </motion.div>
 
             <motion.div
               style={{ scale: scale3, rotate: rotate3, opacity: opacity3 }}
               className="absolute -bottom-12 -left-18 hidden md:flex items-center justify-center z-20 w-36 h-36 origin-center mix-blend-multiply drop-shadow-md"
             >
-              <img src="src/assets/ff.png" alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
+              <img src={ffImg} alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
             </motion.div>
 
             <motion.div
               style={{ scale: scale4, rotate: rotate4, opacity: opacity4 }}
               className="absolute -bottom-20 -right-40 hidden md:flex items-center justify-center z-20 w-60 h-60 origin-center mix-blend-multiply drop-shadow-md"
             >
-              <img src="src/assets/lily.png" alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
+              <img src={lilyImg} alt="Flower" className="w-full h-full object-contain drop-shadow-sm" />
             </motion.div>
           </div>
         </section>
