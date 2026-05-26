@@ -17,7 +17,7 @@
     "ytsr": "^3.8.4",
     "vite": "^5.4.11",
     "@vitejs/plugin-react": "^4.3.4",
-    "@rolldown/plugin-babel": "^0.1.0",
+    "babel-plugin-react-compiler": "^19.0.0-beta-df7b53d-20241126",
     "framer-motion": "^11.11.0"
   },
   "devDependencies": {

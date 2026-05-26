@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
-import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import babel from '@rolldown/plugin-babel'
+import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -8,8 +7,14 @@ export default defineConfig({
     host: true
   },
   plugins: [
-    react(),
-    babel({ presets: [reactCompilerPreset()] })
+    react({
+      babel: {
+        plugins: [
+          // This safely activates the React Compiler preset directly through the Vite React plugin pipeline
+          ['babel-plugin-react-compiler', {}]
+        ]
+      }
+    })
   ],
   logLevel: 'info',
   build: {
