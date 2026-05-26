@@ -81,11 +81,11 @@ io.on('connection', (socket) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Go up one directory level from 'src' to locate the root 'dist' folder built by Vite
+// Go up one directory level from 'src' to find the root 'dist' folder built by Vite
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Express v5 compliant wildcard catch-all route for SPA navigation
-app.get('/*', (req, res) => {
+// Express v5 strict-compliant named wildcard catch-all route
+app.get('/:splat*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
 
