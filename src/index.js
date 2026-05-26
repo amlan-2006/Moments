@@ -84,8 +84,8 @@ const __dirname = path.dirname(__filename);
 // Go up one directory level from 'src' to find the root 'dist' folder built by Vite
 app.use(express.static(path.join(__dirname, '../dist')));
 
-// Express v5 strict-compliant named wildcard catch-all route
-app.get('/:splat*', (req, res) => {
+// Express v5 absolute bulletproof catch-all route using native RegExp
+app.get(/.*/, (req, res) => {
     res.sendFile(path.join(__dirname, '../dist', 'index.html'));
 });
 
