@@ -24,7 +24,7 @@ const SongItem = ({ title, artist, audioUrl, thumbnail, onPlay, isActive }) => (
             }`}
     >
         <div className="w-12 h-12 rounded-xl overflow-hidden shadow-sm bg-zinc-100">
-            <img src={thumbnail} alt={title} className="w-full h-full object-cover" />
+            <img src={thumbnail} alt={title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         </div>
         <div className="flex-1 overflow-hidden">
             <h4 className={`font-bold text-sm truncate ${isActive ? 'text-rose-600' : 'text-zinc-800'}`}>{title}</h4>
@@ -54,9 +54,9 @@ const formatTime = (seconds) => {
 
 // --- Song Library (Direct MP3 URLs) ---
 const SONG_LIBRARY = [
-    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Acoustic Sunrise', artist: 'Chill Vibes', thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=150&auto=format&fit=crop&q=60' },
-    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', title: 'Lofi Study', artist: 'Beat Maker', thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=150&auto=format&fit=crop&q=60' },
-    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', title: 'Midnight Drive', artist: 'Synthwave', thumbnail: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=150&auto=format&fit=crop&q=60' }
+    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', title: 'Acoustic Sunrise', artist: 'Chill Vibes', thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80' },
+    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3', title: 'Lofi Study', artist: 'Beat Maker', thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&auto=format&fit=crop&q=80' },
+    { audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3', title: 'Midnight Drive', artist: 'Synthwave', thumbnail: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80' }
 ];
 
 // --- Main Music Component ---
@@ -317,7 +317,7 @@ const Music = ({ roomState }) => {
                                         className="flex items-center gap-3 p-2 hover:bg-rose-50/60 rounded-xl cursor-pointer transition-colors border-b border-zinc-50 last:border-none"
                                         onClick={() => { handlePlaySong(song); setSearchQuery(""); }}
                                     >
-                                        <img src={song.thumbnail} alt={song.title} className="w-10 h-10 rounded-lg object-cover shadow-inner bg-zinc-100" />
+                                        <img src={song.thumbnail} alt={song.title} className="w-10 h-10 rounded-lg object-cover shadow-inner bg-zinc-100" referrerPolicy="no-referrer" />
                                         <div className="overflow-hidden flex-1">
                                             <h4 className="text-sm font-bold text-zinc-800 truncate">{song.title}</h4>
                                             <p className="text-xs text-zinc-500 truncate">{song.artist}</p>
@@ -338,15 +338,14 @@ const Music = ({ roomState }) => {
                     <div className="absolute -top-20 -right-20 w-40 h-40 bg-rose-200/40 rounded-full blur-3xl"></div>
                     <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-200/40 rounded-full blur-3xl"></div>
 
-                    {/* Album Art */}
-                    <div className="relative w-56 h-56 mb-8 flex items-center justify-center mt-4">
-                        <div className="absolute inset-0  bg-gradient-to-tr from-rose-300 to-amber-200 opacity-30 blur-md"></div>
+                    {/* Album Art Wrapper Fixed */}
+                    <div className="relative w-56 h-56 mb-8 mt-4 rounded-3xl overflow-hidden shadow-md bg-zinc-100">
                         <img
                             src={currentSong.thumbnail}
-                            className="w-full h-full object-cover mix-blend-multiply opacity-80"
+                            className="w-full h-full object-cover relative z-10"
                             alt={currentSong.title}
+                            referrerPolicy="no-referrer"
                         />
-
                     </div>
 
                     {/* Song Info */}
