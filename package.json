@@ -14,7 +14,11 @@
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "socket.io": "^4.8.3",
-    "ytsr": "^3.8.4"
+    "ytsr": "^3.8.4",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "@rolldown/plugin-babel": "^0.1.0",
+    "framer-motion": "^11.0.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
