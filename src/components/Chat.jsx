@@ -3,7 +3,7 @@ import { socket, socketService } from '../sockets/clientside';
 
 // --- Sub-Components ---
 const Message = ({ text, time, isUser, image }) => (
-    <div className={`flex flex-col max-w-[100%] group ${isUser ? 'self-end items-end' : 'items-start'}`}>
+    <div className={`flex flex-col max-w-[85%] group ${isUser ? 'self-end items-end' : 'items-start'}`}>
         {image && (
             <div className="mb-2 w-64 h-48 overflow-hidden border-2 border-white shadow-md rounded-md rounded-bl-none">
                 <img src={image} alt="Shared memory" className="w-full h-full object-cover" />
@@ -11,13 +11,13 @@ const Message = ({ text, time, isUser, image }) => (
         )}
         <div
             className={`p-3 px-4 font-sans text-sm shadow-sm border transition-all duration-300 ${isUser
-                ? 'bg-white text-zinc-800 border-white/40 rounded-full rounded-br-none shadow-[0_4px_20px_rgba(139,76,80,0.04)]'
-                : 'bg-[#E5989B]/15 text-zinc-800 border-[#E5989B]/5 rounded-full rounded-bl-none'
+                ? 'bg-white text-zinc-800 border-white/40 rounded-2xl rounded-br-none shadow-[0_4px_20px_rgba(139,76,80,0.04)]'
+                : 'bg-[#E5989B]/35 text-zinc-900 border-[#E5989B]/40 rounded-2xl rounded-bl-none font-medium'
                 }`}
         >
             {text}
         </div>
-        <span className={`mt-1 font-sans text-[9px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity ${isUser ? 'mr-4' : 'ml-4'}`}>
+        <span className={`mt-1 font-sans text-[9px] text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity ${isUser ? 'mr-2' : 'ml-2'}`}>
             {time}
         </span>
     </div>
@@ -27,10 +27,13 @@ const Message = ({ text, time, isUser, image }) => (
 const Chat = ({ roomState }) => {
     const [inputValue, setInputValue] = useState("");
     const [messages, setMessages] = useState([]);
-    const messagesEndRef = useRef(null);
+    const messageContainerRef = useRef(null);
 
+    // Forces the message container itself to anchor cleanly to the bottom
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (messageContainerRef.current) {
+            messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
+        }
     };
 
     useEffect(() => {
@@ -43,11 +46,16 @@ const Chat = ({ roomState }) => {
                 msg.senderId === socket.id ||
                 (roomState && msg.sender === (roomState.username || roomState.nickname));
 
-            setMessages(prev => [...prev, {
-                ...msg,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                isUser: isCurrentUser
-            }]);
+            setMessages(prev => {
+                // Prevent duplicate processing if keys get double emitted
+                if (prev.some(m => m.id === msg.id)) return prev;
+
+                return [...prev, {
+                    ...msg,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    isUser: isCurrentUser
+                }];
+            });
         };
 
         socket.on('receive-message', handleReceiveMessage);
@@ -67,15 +75,13 @@ const Chat = ({ roomState }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#fff8f7] font-sans selection:bg-rose-100 flex flex-col">
-            {/* {roomState && (
-                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Room {roomState.id}</p>
-            )} */}
-            {/* 1. Sticky Header */}
+        <div className="h-screen bg-[#fff8f7] font-sans selection:bg-rose-100 flex flex-col overflow-hidden">
 
-
-            {/* 2. Message Area */}
-            <main className="w-full max-w-2xl mx-auto flex-1 flex flex-col gap-4 pt-20 pb-32 px-4 transition-all">
+            {/* Message Area Container with Isolated Scroll Core */}
+            <main
+                ref={messageContainerRef}
+                className="w-full max-w-2xl mx-auto flex-1 overflow-y-auto px-4 pt-6 pb-32 flex flex-col gap-4 scroll-smooth"
+            >
                 {!roomState ? (
                     <div className="flex flex-col items-center justify-center my-auto text-center opacity-50 py-12">
                         <span className="material-symbols-outlined text-4xl mb-2">meeting_room</span>
@@ -88,9 +94,11 @@ const Chat = ({ roomState }) => {
                     </div>
                 ) : (
                     messages.map((msg, index) => (
-                        <div key={msg.id || index} className="flex flex-col">
+                        <div key={msg.id || index} className={`flex flex-col ${msg.isUser ? 'items-end' : 'items-start'}`}>
                             {!msg.isUser && (
-                                <span className="text-[10px] text-zinc-400 font-bold mb-0.5 ml-4 uppercase tracking-widest">{msg.sender}</span>
+                                <span className="text-[10px] text-zinc-500 font-bold mb-1 ml-2 uppercase tracking-widest block">
+                                    {msg.sender}
+                                </span>
                             )}
                             <Message
                                 text={msg.text}
@@ -101,14 +109,11 @@ const Chat = ({ roomState }) => {
                         </div>
                     ))
                 )}
-                <div ref={messagesEndRef} />
             </main>
 
-            {/* 3. Floating Input Bar */}
-            <div className="fixed bottom-18 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl">
+            {/* Floating Input Bar */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl">
                 <div className="w-full bg-white rounded-[30px] border border-rose-100 shadow-[0_10px_30px_rgba(0,0,0,0.04)] flex items-end px-3 py-1.5 gap-2">
-
-
                     <textarea
                         value={inputValue}
                         onChange={(e) => {
@@ -130,7 +135,7 @@ const Chat = ({ roomState }) => {
                     />
 
                     <button
-                        onClick={() => { handleSend(); }}
+                        onClick={handleSend}
                         disabled={!roomState || !inputValue.trim()}
                         className={`w-10 h-10 rounded-full flex shrink-0 items-center justify-center text-white transition-all shadow-md mb-0.5 ${inputValue.trim() ? 'bg-[#E5989B] hover:scale-105 active:scale-95 cursor-pointer' : 'bg-zinc-300 cursor-not-allowed'}`}
                     >
