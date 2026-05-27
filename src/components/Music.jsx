@@ -69,8 +69,8 @@ const Music = ({ roomState }) => {
     const audioRef = useRef(null);
     const isRemoteAction = useRef(false);
 
-    // FIX 2: Set to true by default so it shows the "Pause" state and starts playing immediately
-    const [isPlaying, setIsPlaying] = useState(true);
+    // FIX: Set to false so the app starts in a paused state
+    const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [currentSong, setCurrentSong] = useState(SONG_LIBRARY[0]);
@@ -290,14 +290,13 @@ const Music = ({ roomState }) => {
 
     return (
         <div className="w-full font-sans pb-32 pt-8 px-4 flex flex-col items-center">
-            {/* Added autoPlay attribute linked to the isPlaying state */}
+            {/* FIX: Removed autoPlay attribute entirely so it doesn't execute background streams on mount */}
             <audio
                 ref={audioRef}
                 src={currentSong.audioUrl}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={handleEnded}
-                autoPlay={isPlaying}
             />
 
             <motion.main
@@ -305,7 +304,7 @@ const Music = ({ roomState }) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md mx-auto flex flex-col items-center relative"
             >
-                {/* FIX 1: Lowered z-index to z-10 so it scrolls safely underneath your global App Header */}
+                {/* Search Bar (z-10 preserved to slide cleanly behind headers) */}
                 <div className="w-full relative mb-6 z-10">
                     <div className={`flex items-center bg-white/50 backdrop-blur-md border ${isSearchFocused ? 'border-rose-300 shadow-md' : 'border-white/60 shadow-sm'} rounded-full px-4 py-3 transition-all`}>
                         <span className="material-symbols-outlined text-zinc-400 mr-2">search</span>
@@ -327,7 +326,7 @@ const Music = ({ roomState }) => {
                         )}
                     </div>
 
-                    {/* Dropdown adjusted to z-20 to stay grouped with the search bar, but under headers */}
+                    {/* Dropdown Menu */}
                     {isSearchFocused && searchQuery && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
@@ -420,16 +419,19 @@ const Music = ({ roomState }) => {
                         >
                             <span className="material-symbols-outlined text-3xl">skip_previous</span>
                         </button>
+
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={handlePlayPause}
                             className="w-16 h-16 bg-gradient-to-br from-rose-400 to-rose-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-rose-300/50"
                         >
+                            {/* Standard player UX convention: When paused (isPlaying is false), the button displays a play icon inviting action */}
                             <span className={`material-symbols-outlined text-4xl ${isPlaying ? '' : 'ml-1'}`}>
                                 {isPlaying ? 'pause' : 'play_arrow'}
                             </span>
                         </motion.button>
+
                         <button
                             onClick={() => {
                                 const idx = SONG_LIBRARY.findIndex(s => s.audioUrl === currentSong.audioUrl);
