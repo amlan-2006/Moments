@@ -69,12 +69,12 @@ const Music = ({ roomState }) => {
     const audioRef = useRef(null);
     const isRemoteAction = useRef(false);
 
-    const [isPlaying, setIsPlaying] = useState(false);
+    // FIX 2: Set to true by default so it shows the "Pause" state and starts playing immediately
+    const [isPlaying, setIsPlaying] = useState(true);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [currentSong, setCurrentSong] = useState(SONG_LIBRARY[0]);
 
-    // Track state mutations inside a ref wrapper to eliminate stale state updates inside listeners
     const currentSongTrackRef = useRef(SONG_LIBRARY[0].audioUrl);
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -82,13 +82,12 @@ const Music = ({ roomState }) => {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearching, setIsSearching] = useState(false);
 
-    // Keep the tracking ref systematically matched with structural changes
     const changeTrackState = (songObj) => {
         currentSongTrackRef.current = songObj.audioUrl;
         setCurrentSong(songObj);
     };
 
-    // --- 1. Live iTunes Network Fetch ---
+    // --- Live iTunes Network Fetch ---
     useEffect(() => {
         if (!searchQuery.trim()) {
             setSearchResults([]);
@@ -118,14 +117,13 @@ const Music = ({ roomState }) => {
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
-    // --- 2. WebSocket Listeners (FIXED STALE CLOSURE WITH TRACKING REFS) ---
+    // --- WebSocket Listeners ---
     useEffect(() => {
         if (!audioRef.current) return;
 
         const handleMusicStateUpdate = (playback) => {
             if (!playback || !playback.audioUrl) return;
 
-            // Uses ref checking to avoid closed-over stale state comparisons
             if (currentSongTrackRef.current !== playback.audioUrl) {
                 isRemoteAction.current = true;
                 changeTrackState({
@@ -189,6 +187,8 @@ const Music = ({ roomState }) => {
                 if (state.playback.playing) {
                     audioRef.current.play().catch(() => { });
                     setIsPlaying(true);
+                } else {
+                    setIsPlaying(false);
                 }
                 setTimeout(() => { isRemoteAction.current = false; }, 300);
             }
@@ -205,8 +205,7 @@ const Music = ({ roomState }) => {
         };
     }, []);
 
-    // --- 3. Local Controls ---
-
+    // --- Local Controls ---
     const handlePlayPause = useCallback(() => {
         if (!audioRef.current || !currentSong.audioUrl) return;
 
@@ -272,7 +271,6 @@ const Music = ({ roomState }) => {
         }
     }, [roomState]);
 
-    // --- 4. Audio Element Listeners ---
     const handleTimeUpdate = () => {
         if (audioRef.current && !isRemoteAction.current) {
             setCurrentTime(audioRef.current.currentTime);
@@ -292,12 +290,14 @@ const Music = ({ roomState }) => {
 
     return (
         <div className="w-full font-sans pb-32 pt-8 px-4 flex flex-col items-center">
+            {/* Added autoPlay attribute linked to the isPlaying state */}
             <audio
                 ref={audioRef}
                 src={currentSong.audioUrl}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={handleEnded}
+                autoPlay={isPlaying}
             />
 
             <motion.main
@@ -305,8 +305,8 @@ const Music = ({ roomState }) => {
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md mx-auto flex flex-col items-center relative"
             >
-                {/* Search Bar */}
-                <div className="w-full relative mb-6 z-50">
+                {/* FIX 1: Lowered z-index to z-10 so it scrolls safely underneath your global App Header */}
+                <div className="w-full relative mb-6 z-10">
                     <div className={`flex items-center bg-white/50 backdrop-blur-md border ${isSearchFocused ? 'border-rose-300 shadow-md' : 'border-white/60 shadow-sm'} rounded-full px-4 py-3 transition-all`}>
                         <span className="material-symbols-outlined text-zinc-400 mr-2">search</span>
                         <input
@@ -327,12 +327,12 @@ const Music = ({ roomState }) => {
                         )}
                     </div>
 
-                    {/* Search Dropdown */}
+                    {/* Dropdown adjusted to z-20 to stay grouped with the search bar, but under headers */}
                     {isSearchFocused && searchQuery && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute top-14 left-0 w-full bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white p-2 z-50 max-h-64 overflow-y-auto"
+                            className="absolute top-14 left-0 w-full bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-white p-2 z-20 max-h-64 overflow-y-auto"
                         >
                             {searchResults.length > 0 ? (
                                 searchResults.map((song, idx) => (

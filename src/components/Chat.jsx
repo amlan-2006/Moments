@@ -80,7 +80,7 @@ const Chat = ({ roomState }) => {
             {/* Message Area Container with Isolated Scroll Core */}
             <main
                 ref={messageContainerRef}
-                className="w-full max-w-2xl mx-auto flex-1 overflow-y-auto px-4 pt-6 pb-32 flex flex-col gap-4 scroll-smooth"
+                className="w-full max-w-2xl mx-auto flex-1 overflow-y-auto px-4 pt-6 pb-44 flex flex-col gap-4 scroll-smooth"
             >
                 {!roomState ? (
                     <div className="flex flex-col items-center justify-center my-auto text-center opacity-50 py-12">
@@ -112,7 +112,7 @@ const Chat = ({ roomState }) => {
             </main>
 
             {/* Floating Input Bar */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl">
+            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl">
                 <div className="w-full bg-white rounded-[30px] border border-rose-100 shadow-[0_10px_30px_rgba(0,0,0,0.04)] flex items-end px-3 py-1.5 gap-2">
                     <textarea
                         value={inputValue}
